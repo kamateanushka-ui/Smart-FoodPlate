@@ -932,4 +932,4 @@ if __name__ == "__main__":
     print("📍 Local: http://localhost:5000")
     print("📋 Routes: / | /ping | /analyze | /chatbot | /history | /download-report/<id>")
     print("─" * 60)
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=False)
