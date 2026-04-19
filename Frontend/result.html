@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<!-- SmartFood Plate — Analysis Results Page -->
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SmartFood Plate - Analysis Results</title>
+<meta name="description" content="Your AI-powered nutritional breakdown from SmartFood Plate."/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Manrope:wght@200..800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script src="config.js"></script>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "primary-container": "#ba88ff",
+          "tertiary": "#f7bfff",
+          "primary": "#c59aff",
+          "on-secondary-container": "#dbfffa",
+          "primary-fixed": "#ba88ff",
+          "on-tertiary": "#682f77",
+          "surface-container-low": "#091328",
+          "tertiary-fixed": "#f0abfc",
+          "surface-tint": "#c59aff",
+          "primary-fixed-dim": "#b075ff",
+          "on-tertiary-container": "#5e266d",
+          "secondary": "#3ff2e6",
+          "on-secondary": "#005652",
+          "surface-variant": "#192540",
+          "background": "#060e20",
+          "inverse-on-surface": "#4d556b",
+          "on-surface": "#dee5ff",
+          "surface-dim": "#060e20",
+          "secondary-container": "#006a64",
+          "on-primary-fixed": "#000000",
+          "inverse-primary": "#7e29df",
+          "error-container": "#a70138",
+          "primary-dim": "#9547f7",
+          "on-secondary-fixed-variant": "#00615c",
+          "on-primary-fixed-variant": "#3f007c",
+          "surface-container-high": "#141f38",
+          "tertiary-fixed-dim": "#e29eee",
+          "secondary-fixed-dim": "#23e3d8",
+          "on-primary": "#420082",
+          "surface-bright": "#1f2b49",
+          "surface": "#060e20",
+          "on-secondary-fixed": "#00423e",
+          "secondary-dim": "#23e3d8",
+          "inverse-surface": "#faf8ff",
+          "on-background": "#dee5ff",
+          "tertiary-container": "#f0abfc",
+          "on-primary-container": "#330066",
+          "outline": "#6d758c",
+          "on-error-container": "#ffb2b9",
+          "surface-container-highest": "#192540",
+          "surface-container": "#0f1930",
+          "secondary-fixed": "#3ff2e6",
+          "on-surface-variant": "#a3aac4",
+          "on-tertiary-fixed": "#470d56",
+          "error-dim": "#d73357",
+          "on-tertiary-fixed-variant": "#682f76",
+          "on-error": "#490013",
+          "error": "#ff6e84",
+          "outline-variant": "#40485d",
+          "tertiary-dim": "#e29eee",
+          "surface-container-lowest": "#000000"
+        },
+        fontFamily: {
+          "headline": ["Newsreader"],
+          "body": ["Manrope"],
+          "label": ["Manrope"]
+        },
+        borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+      },
+    },
+  }
+</script>
+<style>
+  body { font-family: 'Manrope', sans-serif; background-color: #060e20; color: #dee5ff; overflow-x: hidden; }
+  .font-serif { font-family: 'Newsreader', serif; }
+
+  .glass-panel {
+    background: rgba(25, 37, 64, 0.4);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(109, 117, 140, 0.2);
+  }
+
+  .scanning-line {
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #3ff2e6, transparent);
+    box-shadow: 0 0 15px #3ff2e6;
+    position: absolute;
+    width: 100%;
+    top: 0; left: 0;
+    animation: scan 3s infinite ease-in-out;
+    z-index: 10;
+  }
+  @keyframes scan {
+    0%   { top: 0%;   opacity: 0; }
+    50%  { opacity: 1; }
+    100% { top: 100%; opacity: 0; }
+  }
+
+  .nav-blur {
+    background: rgba(6, 14, 32, 0.7);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .hero-glow {
+    position: absolute;
+    top: -10%; left: 50%;
+    transform: translateX(-50%);
+    width: 100%; height: 100%;
+    background: radial-gradient(circle at 50% 30%, rgba(138, 43, 226, 0.15), transparent 70%);
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  @keyframes fillGauge {
+    from { stroke-dashoffset: 283; }
+    to   { stroke-dashoffset: var(--target-offset); }
+  }
+  .gauge-path {
+    stroke-dasharray: 283;
+    stroke-dashoffset: 283;
+    transition: stroke-dashoffset 2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .gauge-glow { filter: drop-shadow(0 0 4px currentColor); }
+
+  /* ── Advice cards ── */
+  .advice-card {
+    background: rgba(25, 37, 64, 0.5);
+    border: 1px solid rgba(109, 117, 140, 0.2);
+    border-radius: 12px;
+    padding: 14px 18px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  /* ── Toast ── */
+  #toast {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: rgba(25, 37, 64, 0.95);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 110, 132, 0.4);
+    color: #ff6e84;
+    padding: 14px 24px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 10000;
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 90vw;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  #toast.success { border-color: rgba(63, 242, 230, 0.4); color: #3ff2e6; }
+
+  /* ── No-data banner ── */
+  #no-data-banner {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(6, 14, 32, 0.97);
+    z-index: 9999;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    text-align: center;
+    padding: 32px;
+  }
+  #no-data-banner.active { display: flex; }
+</style>
+</head>
+<body class="bg-background text-on-surface min-h-screen selection:bg-primary-container selection:text-on-primary-container relative">
+<div class="hero-glow"></div>
+
+<!-- ═══════════════════════════ TOAST ═══════════════════════════ -->
+<div id="toast" role="alert">
+  <span class="material-symbols-outlined text-xl" id="toast-icon">error</span>
+  <span id="toast-text">Something went wrong.</span>
+</div>
+
+<!-- ═══════════════════════════ NO DATA BANNER ═══════════════════════════ -->
+<div id="no-data-banner" role="dialog" aria-modal="true" aria-label="No analysis data found">
+  <span class="material-symbols-outlined text-primary" style="font-size:64px;">search_off</span>
+  <h2 class="font-serif text-3xl">No Analysis Found</h2>
+  <p class="text-on-surface-variant max-w-md">It looks like you haven't analysed a meal yet, or the session data was cleared. Please upload a food photo to get started.</p>
+  <a href="index.html" class="mt-4 px-8 py-3 rounded-full font-bold text-on-primary bg-gradient-to-r from-primary to-secondary hover:scale-95 transition-transform">
+    Go Back & Upload
+  </a>
+</div>
+
+<!-- ═══════════════════════════ NAV ═══════════════════════════ -->
+<nav class="fixed top-0 w-full z-[100] nav-blur border-b border-white/5">
+  <div class="max-w-screen-2xl mx-auto flex justify-between items-center px-8 py-4">
+    <a href="index.html" class="text-2xl font-serif italic text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-teal-400 hover:opacity-80 transition-opacity">
+      SmartFood Plate
+    </a>
+    <div class="hidden md:flex gap-8">
+      <a class="text-slate-300 hover:text-teal-300 transition-colors duration-300 font-body text-sm" href="#">Science</a>
+      <a class="text-slate-300 hover:text-teal-300 transition-colors duration-300 font-body text-sm" href="#">Benefits</a>
+      <a class="text-slate-300 hover:text-teal-300 transition-colors duration-300 font-body text-sm" href="#">Recipes</a>
+      <a class="text-slate-300 hover:text-teal-300 transition-colors duration-300 font-body text-sm" href="#">Community</a>
+    </div>
+    <a href="index.html" class="bg-gradient-to-r from-primary to-secondary text-on-primary px-6 py-2 rounded-full font-bold hover:scale-95 duration-200 ease-in-out text-sm">
+      Analyse Another
+    </a>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════ MAIN ═══════════════════════════ -->
+<main class="pt-32 pb-24 px-6 md:px-12 max-w-7xl mx-auto relative z-10">
+  <header class="mb-12">
+    <span class="label-md uppercase tracking-[0.1rem] text-secondary font-bold text-xs">Analysis Complete</span>
+    <h1 id="page-headline" class="font-serif text-5xl md:text-7xl mt-4 leading-tight">
+      Your Digital Plate <span class="text-primary-dim italic" id="food-name-headline">Decoded.</span>
+    </h1>
+    <p id="analysis-timestamp" class="text-on-surface-variant text-sm mt-3 hidden"></p>
+  </header>
+
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+
+    <!-- ── Left Column: Image Lens ── -->
+    <div class="lg:col-span-5 relative">
+      <div class="rounded-xl overflow-hidden bg-surface-container-highest relative aspect-[4/5] shadow-2xl border border-white/5">
+        <img
+          id="food-image"
+          alt="Analyzed food"
+          class="w-full h-full object-cover"
+          src="https://lh3.googleusercontent.com/aida-public/AB6AXuDNhYXEFCxd9-ZnJ125gwHOsL1HEFHARCRoW51JrMg4t__GdRcs8qluGXdZZ_VI6hjs5QrpSQpnASbk0bD_vUejH_SWUTJbQX7GaCB-KEw34GEkxfIjjxcDpg2f9D3vskDTkTJnBxCi3LDON8t6oEkcS5ePqgtI2JOvSiNRbYkASgbhSXMiOvo1TxEBtG26Ba6AW8PgMNy4nvOU9uCQyGQqptHfgqNHYriyiN3Ur1lKdUzhukUw7tRZad1sMnFjiPGyhMUStNXVcYQ"
+        />
+        <!-- Scanning Effect -->
+        <div class="scanning-line"></div>
+        <!-- AI Chips — dynamically populated -->
+        <div class="absolute top-6 left-6 flex flex-col gap-3" id="ai-chips">
+          <div class="glass-panel px-4 py-2 rounded-full flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider">
+            <span class="material-symbols-outlined text-secondary text-base">check_circle</span>
+            <span id="confirmed-chip">Scanning…</span>
+          </div>
+          <div class="glass-panel px-4 py-2 rounded-full flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider">
+            <span class="material-symbols-outlined text-primary text-base">bolt</span>
+            High Bioavailability
+          </div>
+        </div>
+        <!-- Nutritional Lens -->
+        <div class="absolute bottom-6 right-6 left-6 rounded-xl glass-panel p-6 backdrop-blur-[24px]">
+          <div class="flex justify-between items-end">
+            <div>
+              <p class="text-on-surface-variant text-[10px] font-label uppercase tracking-widest mb-1">Total Impact</p>
+              <h2 class="font-serif text-4xl text-on-surface" id="calories-display">
+                — <span class="text-lg italic font-sans text-secondary-dim">kcal</span>
+              </h2>
+              <p class="text-on-surface-variant text-[10px] font-label uppercase tracking-wider mt-1 italic" id="serving-display"></p>
+            </div>
+            <div class="text-right">
+              <p class="text-on-surface-variant text-[10px] font-label">Confidence Score</p>
+              <p class="text-secondary font-bold text-xl" id="confidence-display">—%</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Right Column: Data ── -->
+    <div class="lg:col-span-7 space-y-8">
+
+      <!-- Macros Card -->
+      <div class="bg-surface-container-low p-8 md:p-10 rounded-xl shadow-lg relative overflow-hidden border border-white/5">
+        <div class="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[100px] rounded-full -mr-20 -mt-20"></div>
+        <h3 class="font-serif text-3xl mb-12 flex items-center gap-3 relative z-10">
+          <span class="material-symbols-outlined text-primary text-3xl">analytics</span>
+          Nutritional Breakdown
+        </h3>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-8 relative z-10">
+
+          <!-- Protein Gauge -->
+          <div class="flex flex-col items-center gap-4 group">
+            <div class="relative w-24 h-24">
+              <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                <circle class="text-white/5" cx="50" cy="50" fill="transparent" r="45" stroke="currentColor" stroke-width="6"></circle>
+                <circle id="gauge-protein" class="gauge-path gauge-glow text-primary" cx="50" cy="50" fill="transparent" r="45" stroke="currentColor" stroke-linecap="round" stroke-width="6" style="--target-offset: 212;"></circle>
+              </svg>
+              <div class="absolute inset-0 flex items-center justify-center">
+                <span class="text-lg font-serif font-bold" id="pct-protein">—<span class="text-[10px] opacity-60">%</span></span>
+              </div>
+            </div>
+            <div class="text-center">
+              <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Protein</p>
+              <p class="text-sm font-serif mt-1" id="val-protein">—g</p>
+            </div>
+          </div>
+
+          <!-- Carbs Gauge -->
+          <div class="flex flex-col items-center gap-4 group">
+            <div class="relative w-24 h-24">
+              <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                <circle class="text-white/5" cx="50" cy="50" fill="transparent" r="45" stroke="currentColor" stroke-width="6"></circle>
+                <circle id="gauge-carbs" class="gauge-path gauge-glow text-secondary" cx="50" cy="50" fill="transparent" r="45" stroke="currentColor" stroke-linecap="round" stroke-width="6" style="--target-offset: 141;"></circle>
+              </svg>
+              <div class="absolute inset-0 flex items-center justify-center">
+                <span class="text-lg font-serif font-bold" id="pct-carbs">—<span class="text-[10px] opacity-60">%</span></span>
+              </div>
+            </div>
+            <div class="text-center">
+              <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Carbs</p>
+              <p class="text-sm font-serif mt-1" id="val-carbs">—g</p>
+            </div>
+          </div>
+
+          <!-- Fats Gauge -->
+          <div class="flex flex-col items-center gap-4 group">
+            <div class="relative w-24 h-24">
+              <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                <circle class="text-white/5" cx="50" cy="50" fill="transparent" r="45" stroke="currentColor" stroke-width="6"></circle>
+                <circle id="gauge-fat" class="gauge-path gauge-glow text-tertiary" cx="50" cy="50" fill="transparent" r="45" stroke="currentColor" stroke-linecap="round" stroke-width="6" style="--target-offset: 241;"></circle>
+              </svg>
+              <div class="absolute inset-0 flex items-center justify-center">
+                <span class="text-lg font-serif font-bold" id="pct-fat">—<span class="text-[10px] opacity-60">%</span></span>
+              </div>
+            </div>
+            <div class="text-center">
+              <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Healthy Fats</p>
+              <p class="text-sm font-serif mt-1" id="val-fat">—g</p>
+            </div>
+          </div>
+
+          <!-- Fiber Gauge -->
+          <div class="flex flex-col items-center gap-4 group">
+            <div class="relative w-24 h-24">
+              <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                <circle class="text-white/5" cx="50" cy="50" fill="transparent" r="45" stroke="currentColor" stroke-width="6"></circle>
+                <circle id="gauge-fiber" class="gauge-path gauge-glow text-on-surface-variant" cx="50" cy="50" fill="transparent" r="45" stroke="currentColor" stroke-linecap="round" stroke-width="6" style="--target-offset: 255;"></circle>
+              </svg>
+              <div class="absolute inset-0 flex items-center justify-center">
+                <span class="text-lg font-serif font-bold" id="pct-fiber">—<span class="text-[10px] opacity-60">%</span></span>
+              </div>
+            </div>
+            <div class="text-center">
+              <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Fiber</p>
+              <p class="text-sm font-serif mt-1" id="val-fiber">—g</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Sugar + Extra Stats row -->
+      <div class="grid grid-cols-2 gap-4">
+        <div class="bg-surface-container-low rounded-xl p-6 border border-white/5 flex flex-col gap-1">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Sugar</p>
+          <p class="font-serif text-2xl" id="val-sugar">—<span class="text-sm ml-1 opacity-60">g</span></p>
+        </div>
+        <div class="bg-surface-container-low rounded-xl p-6 border border-white/5 flex flex-col gap-1">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Analysis ID</p>
+          <p class="text-xs text-on-surface-variant truncate" id="val-analysis-id">—</p>
+        </div>
+      </div>
+
+      <!-- AI Recommendations -->
+      <div class="bg-surface-container-low p-8 rounded-xl shadow-lg border border-white/5">
+        <h4 class="font-serif text-2xl mb-6 flex items-center gap-3">
+          <span class="material-symbols-outlined text-secondary">recommend</span>
+          AI Recommendations
+        </h4>
+        <div id="advice-container" class="flex flex-col gap-3">
+          <div class="advice-card text-on-surface-variant">Loading recommendations…</div>
+        </div>
+      </div>
+
+      <!-- Micronutrients -->
+      <div class="bg-surface-container-low p-8 rounded-xl shadow-lg border border-white/5" id="micros-section">
+        <h4 class="font-serif text-2xl mb-6">Micronutrients Detected</h4>
+        <div class="flex flex-wrap gap-3" id="micros-grid">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- CTA Actions -->
+      <div class="flex flex-col sm:flex-row gap-4 pt-4">
+        <button
+          id="download-pdf-btn"
+          class="flex-1 flex items-center justify-center gap-2 glass-panel font-bold text-on-surface hover:bg-surface-bright transition-all duration-300 rounded-[4px] h-14"
+        >
+          <span class="material-symbols-outlined text-xl">picture_as_pdf</span>
+          Download PDF Report
+        </button>
+        <a
+          href="index.html"
+          class="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-primary to-secondary font-bold text-on-primary shadow-[0_10px_30px_rgba(63,242,230,0.3)] hover:scale-[1.02] active:scale-95 transition-all duration-300 rounded-[4px] h-14"
+        >
+          <span class="material-symbols-outlined text-xl">camera_alt</span>
+          Analyse Another Meal
+        </a>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Detected Ingredients Section (dynamically rendered) ── -->
+  <section class="mt-32" id="ingredients-section">
+    <h3 class="font-serif text-4xl mb-12">Detected Ingredients</h3>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-6" id="ingredients-grid">
+      <!-- Populated by JS from data.ingredients -->
+    </div>
+  </section>
+</main>
+
+<!-- ═══════════════════════════ FOOTER ═══════════════════════════ -->
+<footer class="w-full py-16 px-8 border-t border-white/5 bg-[#060e20] relative z-10">
+  <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
+    <div class="font-serif text-2xl italic text-on-surface">SmartFood Plate</div>
+    <div class="flex flex-wrap justify-center gap-8 text-slate-400 font-sans text-sm">
+      <a class="hover:text-primary transition-colors" href="#">Privacy Policy</a>
+      <a class="hover:text-primary transition-colors" href="#">Terms of Service</a>
+      <a class="hover:text-primary transition-colors" href="#">AI Methodology</a>
+      <a class="hover:text-primary transition-colors" href="#">Contact</a>
+    </div>
+    <div class="text-slate-500 font-sans text-xs tracking-wide text-center md:text-right">
+      © 2024 SmartFood Plate. Digital Alchemy for Modern Health.
+    </div>
+  </div>
+</footer>
+
+<!-- ═══════════════════════════ CHATBOT WIDGET ═══════════════════════════ -->
+<div class="fixed bottom-8 right-8 z-[100] flex flex-col items-end">
+  <div id="chatbot-window" class="hidden w-80 md:w-96 h-[400px] mb-4 glass-panel bg-surface/90 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden" style="display:none;flex-direction:column">
+    <div class="bg-surface-container-highest px-4 py-3 flex justify-between items-center border-b border-white/5 shrink-0">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary">psychiatry</span>
+        <span class="font-bold text-sm tracking-wide text-on-surface">DietBuddy AI</span>
+      </div>
+      <button id="chatbot-close-btn" class="text-on-surface-variant hover:text-white transition-colors">
+        <span class="material-symbols-outlined text-xl">close</span>
+      </button>
+    </div>
+    <div id="chat-messages" class="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-sm font-body">
+      <div class="flex flex-col gap-1 items-start">
+        <div class="bg-surface-container-high text-on-surface px-4 py-2 rounded-2xl rounded-tl-sm max-w-[85%] border border-white/5 leading-relaxed shadow-sm">
+          Hello! I'm your DietBuddy assistant. Ask me anything about your analysed meal or general nutrition!
+        </div>
+      </div>
+    </div>
+    <div class="p-3 bg-surface-container-lowest border-t border-white/5 flex gap-2 shrink-0">
+      <input type="text" id="chat-input" placeholder="Message DietBuddy…" autocomplete="off"
+        class="flex-1 bg-surface-container-high border border-outline-variant/30 rounded-full px-4 py-2 text-sm text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:border-primary/50 transition-colors"/>
+      <button id="chat-send-btn" class="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-on-primary hover:scale-105 active:scale-95 transition-transform shrink-0 shadow-md">
+        <span class="material-symbols-outlined text-lg">send</span>
+      </button>
+    </div>
+  </div>
+  <button id="chatbot-toggle-btn" class="group relative flex items-center justify-center w-16 h-16 rounded-full glass-panel bg-primary/20 backdrop-blur-xl border border-primary/30 shadow-[0_0_20px_rgba(138,43,226,0.3)] hover:shadow-[0_0_30px_rgba(138,43,226,0.5)] transition-all duration-300 hover:scale-110 active:scale-95">
+    <span class="material-symbols-outlined text-primary text-3xl transition-transform duration-300 group-hover:rotate-12">chat_spark</span>
+    <div class="absolute -top-12 right-0 bg-surface-container-highest text-on-surface text-xs font-bold py-2 px-4 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap pointer-events-none border border-outline-variant/30">
+      Ask DietBuddy
+      <div class="absolute bottom-[-6px] right-6 w-3 h-3 bg-surface-container-highest border-r border-b border-outline-variant/30 rotate-45"></div>
+    </div>
+  </button>
+</div>
+
+<!-- ═══════════════════════════ SCRIPTS ═══════════════════════════ -->
+<script>
+// ── Toast helper ─────────────────────────────────────────────────
+function showToast(message, type = "error") {
+  const toast = document.getElementById("toast");
+  document.getElementById("toast-text").textContent = message;
+  document.getElementById("toast-icon").textContent = type === "success" ? "check_circle" : "error";
+  toast.className = type === "success" ? "show success" : "show";
+  setTimeout(() => { toast.className = ""; }, 4500);
+}
+
+// ── Gauge update helper ───────────────────────────────────────────
+function setGauge(id, pctLabel, valEl, value, pct) {
+  const circle = document.getElementById("gauge-" + id);
+  const pctEl  = document.getElementById("pct-" + id);
+  const val    = document.getElementById("val-" + id);
+  if (!circle || !pctEl || !val) return;
+  const offset = 283 * (1 - pct);
+  circle.style.setProperty("--target-offset", offset);
+  // Trigger the CSS animation by forcing a reflow then applying
+  circle.style.strokeDashoffset = "283";
+  requestAnimationFrame(() => {
+    circle.style.transition = "stroke-dashoffset 2s cubic-bezier(0.4,0,0.2,1)";
+    circle.style.strokeDashoffset = offset;
+  });
+  pctEl.innerHTML = `${Math.round(pct * 100)}<span class="text-[10px] opacity-60">%</span>`;
+  val.textContent = `${value}g`;
+}
+
+// ── Populate page from localStorage ──────────────────────────────
+document.addEventListener("DOMContentLoaded", () => {
+
+  // ✅ FIX: Robust localStorage read with error handling
+  let data = null;
+  try {
+    const raw = localStorage.getItem("foodData");
+    if (raw) data = JSON.parse(raw);
+  } catch (e) {
+    console.error("[SmartFood] Failed to parse localStorage data:", e);
+  }
+
+  // ✅ FIX: If no data → show no-data banner instead of blank page
+  if (!data) {
+    document.getElementById("no-data-banner").classList.add("active");
+    return;
+  }
+
+  console.log("[SmartFood] Loaded result data:", data);
+
+  // ── ✅ Show actual uploaded image (stored as thumbnail in localStorage) ──
+  const storedImage = localStorage.getItem("foodImageData");
+  const foodImgEl   = document.getElementById("food-image");
+  if (storedImage && foodImgEl) {
+    foodImgEl.src = storedImage;
+    foodImgEl.alt = data.detected_food || "Analysed food";
+  }
+
+  // ── Headline ──────────────────────────────────────────────────
+  document.getElementById("food-name-headline").textContent = "Analyzed.";
+
+  // ── Timestamp ────────────────────────────────────────────────
+  if (data.timestamp) {
+    const ts = document.getElementById("analysis-timestamp");
+    ts.textContent = "Analysed at: " + data.timestamp;
+    ts.classList.remove("hidden");
+  }
+
+  // ── Calories & Confidence ──────────────────────────────────
+  // ✅ FIX: Both now dynamic from API data (were hardcoded before)
+  document.getElementById("calories-display").innerHTML =
+    `${data.calories || "—"} <span class="text-lg italic font-sans text-secondary-dim">kcal</span>`;
+  document.getElementById("confidence-display").textContent =
+    data.confidence ? `${(data.confidence * 100).toFixed(1)}%` : "—%";
+
+  // ── Analysis Status ────────────────────────────────────────
+  document.getElementById("confirmed-chip").textContent = "Analysis Confirmed";
+
+  // ── Macro gauges ─────────────────────────────────────────
+  const protein = data.protein || 0;
+  const carbs   = data.carbs   || 0;
+  const fat     = data.fat     || 0;
+  const fiber   = data.fiber   || 0;
+  const total   = protein + carbs + fat + fiber || 1;
+
+  setGauge("protein", "pct-protein", "val-protein", protein, protein / total);
+  setGauge("carbs",   "pct-carbs",   "val-carbs",   carbs,   carbs   / total);
+  setGauge("fat",     "pct-fat",     "val-fat",     fat,     fat     / total);
+  setGauge("fiber",   "pct-fiber",   "val-fiber",   fiber,   fiber   / total);
+
+  // ── Extra stats ───────────────────────────────────────────
+  document.getElementById("val-sugar").innerHTML =
+    `${data.sugar || "—"}<span class="text-sm ml-1 opacity-60">g</span>`;
+  document.getElementById("val-analysis-id").textContent = data.analysis_id || "—";
+  
+  const servingEl = document.getElementById("serving-display");
+  if (data.serving) {
+    servingEl.textContent = `(${data.serving})`;
+  } else {
+    servingEl.textContent = "";
+  }
+
+  // ── Advice / Recommendations ─────────────────────────────
+  const adviceContainer = document.getElementById("advice-container");
+  if (data.advice && data.advice.length > 0) {
+    adviceContainer.innerHTML = data.advice
+      .map(a => `<div class="advice-card">${a}</div>`)
+      .join("");
+  } else {
+    adviceContainer.innerHTML = `<div class="advice-card text-on-surface-variant">No specific recommendations available for this meal.</div>`;
+  }
+
+  // ── ✅ Render micronutrients dynamically ─────────────────────────
+  const microsGrid = document.getElementById("micros-grid");
+  const microsSection = document.getElementById("micros-section");
+  if (data.micronutrients && data.micronutrients.length > 0) {
+    microsGrid.innerHTML = data.micronutrients.map(mic => `
+      <div class="bg-surface-container-highest px-4 py-3 rounded-lg flex items-center gap-3 border border-outline-variant/10">
+        <div class="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+          <span class="text-primary text-[10px] font-bold">${mic.symbol || "—"}</span>
+        </div>
+        <div>
+          <p class="text-[10px] font-bold uppercase text-on-surface-variant">${mic.name}</p>
+          <p class="text-sm text-on-surface">${mic.value}</p>
+        </div>
+      </div>
+    `).join("");
+  } else {
+    microsSection.style.display = "none";
+  }
+
+  // ── ✅ FIX: Render ingredients dynamically from data.ingredients ──
+  const ingredientsGrid = document.getElementById("ingredients-grid");
+  const ingredientsSection = document.getElementById("ingredients-section");
+  if (data.ingredients && data.ingredients.length > 0) {
+    ingredientsGrid.innerHTML = data.ingredients.map(ing => `
+      <div class="bg-surface-container-low p-6 rounded-xl group hover:bg-surface-container transition-all duration-300 border border-white/5">
+        <div class="flex items-center justify-center h-40 text-7xl">${ing.emoji || "🍽️"}</div>
+        <h5 class="font-bold text-on-surface mt-2">${ing.name}</h5>
+        <p class="text-xs text-on-surface-variant uppercase tracking-wider mt-1">${ing.nutrient}</p>
+      </div>
+    `).join("");
+  } else {
+    ingredientsSection.style.display = "none";
+  }
+
+  // ── ✅ FIX: Download PDF button — data is now in scope ────
+  document.getElementById("download-pdf-btn").addEventListener("click", () => {
+    if (!data || !data.analysis_id) {
+      showToast("No analysis ID found. Please upload a new image.");
+      return;
+    }
+    const url = CONFIG.API_BASE_URL + "/download-report/" + data.analysis_id;
+    window.open(url, "_blank");
+  });
+
+});
+
+// ── Chatbot ───────────────────────────────────────────────────────
+(() => {
+const chatbotToggle  = document.getElementById("chatbot-toggle-btn");
+const chatbotWindow  = document.getElementById("chatbot-window");
+const chatbotClose   = document.getElementById("chatbot-close-btn");
+const chatInput      = document.getElementById("chat-input");
+const chatSend       = document.getElementById("chat-send-btn");
+const chatMessages   = document.getElementById("chat-messages");
+
+const toggleChat = () => {
+  const isHidden = chatbotWindow.style.display === "none" || chatbotWindow.style.display === "";
+  chatbotWindow.style.display = isHidden ? "flex" : "none";
+  chatbotWindow.style.flexDirection = "column";
+  if (isHidden) {
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    chatInput.focus();
+  }
+};
+chatbotToggle.addEventListener("click", toggleChat);
+chatbotClose.addEventListener("click", toggleChat);
+
+const appendMessage = (text, isUser) => {
+  const msgDiv = document.createElement("div");
+  msgDiv.className = `flex flex-col gap-1 w-full ${isUser ? "items-end" : "items-start"}`;
+  const bubbleClass = isUser
+    ? "bg-primary text-on-primary rounded-tr-sm"
+    : "bg-surface-container-high text-on-surface rounded-tl-sm";
+  msgDiv.innerHTML = `<div class="${bubbleClass} px-4 py-2 rounded-2xl max-w-[85%] border border-white/5 shadow-sm leading-relaxed">${text}</div>`;
+  chatMessages.appendChild(msgDiv);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+};
+
+const sendMessage = async () => {
+  const text = chatInput.value.trim();
+  if (!text) return;
+  appendMessage(text, true);
+  chatInput.value = "";
+  chatInput.disabled = true;
+  chatSend.disabled = true;
+
+  const typingDiv = document.createElement("div");
+  typingDiv.className = "flex flex-col gap-1 items-start w-full";
+  typingDiv.innerHTML = `<div class="bg-surface-container-high px-4 py-3 rounded-2xl rounded-tl-sm border border-white/5 flex gap-1 items-center">
+    <div class="w-1.5 h-1.5 bg-on-surface-variant rounded-full animate-ping"></div>
+    <div class="w-1.5 h-1.5 bg-on-surface-variant rounded-full animate-ping" style="animation-delay:0.15s"></div>
+    <div class="w-1.5 h-1.5 bg-on-surface-variant rounded-full animate-ping" style="animation-delay:0.3s"></div>
+  </div>`;
+  chatMessages.appendChild(typingDiv);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+
+  try {
+    const res = await fetch(CONFIG.API_BASE_URL + "/chatbot", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text }),
+    });
+    const replyData = await res.json();
+    typingDiv.remove();
+    appendMessage(replyData.response || "Sorry, I couldn't process that.", false);
+  } catch {
+    typingDiv.remove();
+    appendMessage("Unable to connect to DietBuddy. Is the backend running?", false);
+  }
+  chatInput.disabled = false;
+  chatSend.disabled = false;
+  chatInput.focus();
+};
+
+chatSend.addEventListener("click", sendMessage);
+chatInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendMessage(); });
+})();
+</script>
+</body>
+</html>
