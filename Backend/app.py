@@ -10,6 +10,12 @@ from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 app = Flask(__name__) 
 CORS(app, resources={r"/*": {"origins": "*"}})
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', '*')
+    response.headers.add('Access-Control-Allow-Methods', '*')
+    return response
 from PIL import Image
 
 # Load .env file (GEMINI_API_KEY lives here)
@@ -470,33 +476,30 @@ FOOD_VISUAL_HINTS = {
 
 def detect_food_gemini(image_bytes, mime_type="image/jpeg"):
     """
-    ULTRA-FAST AI DETECTION FOR PROJECT REVIEW
+    STABLE AI DETECTION FOR PROJECT REVIEW
     """
     if not genai: return None
     try:
         img = Image.open(io.BytesIO(image_bytes))
         img.thumbnail((384, 384))
         food_list = ", ".join(NUTRITION_DB.keys())
-        prompt = f"Food analysis. Identify the main food from this list: {food_list}. RESULT (just the name):"
+        prompt = f"Identify food from this list: {food_list}. RESULT (just the name):"
         
-        # Only try the most likely model to save time
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        response = model.generate_content([prompt, img], generation_config={"temperature": 0.1, "max_output_tokens": 10})
-        
-        if response and response.candidates and response.candidates[0].content.parts:
-            detected = response.text.strip().lower()
-            for food in sorted(NUTRITION_DB.keys(), key=len, reverse=True):
-                if food in detected: return food
-            if "dosa" in detected: return "dosa"
-            if "idli" in detected: return "idli"
+        # Try two most common name formats quickly
+        for m_name in ["gemini-1.5-flash", "models/gemini-1.5-flash"]:
+            try:
+                model = genai.GenerativeModel(m_name)
+                response = model.generate_content([prompt, img], generation_config={"temperature": 0.1, "max_output_tokens": 10})
+                if response and response.candidates and response.candidates[0].content.parts:
+                    detected = response.text.strip().lower()
+                    for food in sorted(NUTRITION_DB.keys(), key=len, reverse=True):
+                        if food in detected: return food
+            except: continue
     except Exception as e:
-        print(f"[AI-QUIK] Offline: {e}")
+        print(f"[AI-QUIK] Error: {e}")
     return None
 
 def detect_food_color_heuristic(image_bytes):
-    """
-    DETERMINISTIC COLOR FALLBACK
-    """
     try:
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         img_small = img.resize((32, 32))
@@ -507,26 +510,27 @@ def detect_food_color_heuristic(image_bytes):
         brightness = (r_avg + g_avg + b_avg) / 3
         max_c, min_c = max(r_avg, g_avg, b_avg), min(r_avg, g_avg, b_avg)
         sat = (max_c - min_c) / (max_c + 1)
-        
-        # Calculate texture variance
         b_list = [(p[0]+p[1]+p[2])/3 for p in pixels]
-        var = sum((b - brightness)**2 for b in b_list) / len(pixels)
-        texture = var**0.5
+        texture = (sum((b - brightness)**2 for b in b_list) / len(pixels))**0.5
 
         print(f"[Heuristic] R={r_avg:.0f} G={g_avg:.0f} Sat={sat:.2f} Brt={brightness:.0f} Text={texture:.1f}")
 
-        # 1. Neutral Colors (Rice/Idli/Momo)
-        if sat < 0.22 and brightness > 90:
-            return "idli" if r_avg > g_avg + 5 else "rice"
+        # 1. Neutral Colors (Rice/Idli/Momo) - MORE TOLERANT OF WARM SHADOWS
+        if sat < 0.22 and brightness > 85:
+            if r_avg > g_avg + 8: return "idli"
+            return "rice"
 
-        # 2. Strong Red Tint (Sambar/Pizza)
-        if r_avg > g_avg + 35:
-            return "pizza" if brightness > 150 else "sambar"
+        # 2. Red Dishes (Pizza / Sambar)
+        if r_avg > g_avg + 30:
+            return "pizza" if brightness > 155 else "sambar"
 
-        # 3. Yellow/Brown Tint (Dosa/Panipuri/Biryani)
-        if r_avg > g_avg + 10:
-            if sat > 0.38: return "biryani"
-            return "panipuri" if texture > 40 else "dosa"
+        # 3. Golden/Brown/Mixed (Burger / Dosa / Panipuri / Biryani)
+        if r_avg > g_avg + 8:
+            if sat > 0.40: return "biryani"
+            # Texture differentiation
+            if texture > 48: return "burger" 
+            if texture > 35: return "panipuri"
+            return "dosa"
 
         return "salad" if g_avg > r_avg else "rice"
     except:
