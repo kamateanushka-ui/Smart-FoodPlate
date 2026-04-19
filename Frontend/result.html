@@ -543,7 +543,13 @@ document.addEventListener("DOMContentLoaded", () => {
     data.confidence ? `${(data.confidence * 100).toFixed(1)}%` : "—%";
 
   // ── Analysis Status ────────────────────────────────────────
-  document.getElementById("confirmed-chip").textContent = "Analysis Confirmed";
+  document.getElementById("confirmed-chip").textContent = data.status_msg || "Analysis Confirmed";
+  if (data.version) {
+    const versionEl = document.createElement("div");
+    versionEl.className = "text-[10px] opacity-40 mt-1 font-mono";
+    versionEl.textContent = "System Engine: " + data.version;
+    document.getElementById("confirmed-chip").parentElement.appendChild(versionEl);
+  }
 
   // ── Macro gauges ─────────────────────────────────────────
   const protein = data.protein || 0;

@@ -612,6 +612,8 @@ def process_image_analysis(image_bytes, mime_type="image/jpeg"):
     else:
         nutrition["confidence"] = 0.50
 
+    nutrition["version"] = "Final-Review-v1.1" # Visible proof of update
+    nutrition["status_msg"] = "High-Accuracy AI Detection" if method == "gemini" else "Intelligent Heuristic Fallback"
     nutrition["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     nutrition["advice"] = generate_advice(nutrition, detected_food)
     return nutrition
