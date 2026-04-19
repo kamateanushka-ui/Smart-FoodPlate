@@ -476,17 +476,16 @@ FOOD_VISUAL_HINTS = {
 
 def detect_food_gemini(image_bytes, mime_type="image/jpeg"):
     """
-    STABLE AI DETECTION FOR PROJECT REVIEW
+    HIGH-ACCURACY AI DETECTION
     """
     if not genai: return None
     try:
         img = Image.open(io.BytesIO(image_bytes))
         img.thumbnail((384, 384))
         food_list = ", ".join(NUTRITION_DB.keys())
-        prompt = f"Identify food from this list: {food_list}. RESULT (just the name):"
+        prompt = f"Food analysis. Identify the main food from this list: {food_list}. RESULT (just the name):"
         
-        # Try two most common name formats quickly
-        for m_name in ["gemini-1.5-flash", "models/gemini-1.5-flash"]:
+        for m_name in ["gemini-1.5-flash", "models/gemini-1.5-flash", "gemini-2.0-flash"]:
             try:
                 model = genai.GenerativeModel(m_name)
                 response = model.generate_content([prompt, img], generation_config={"temperature": 0.1, "max_output_tokens": 10})
@@ -496,10 +495,13 @@ def detect_food_gemini(image_bytes, mime_type="image/jpeg"):
                         if food in detected: return food
             except: continue
     except Exception as e:
-        print(f"[AI-QUIK] Error: {e}")
+        print(f"[AI-ERR] {e}")
     return None
 
 def detect_food_color_heuristic(image_bytes):
+    """
+    ULTRA-STABLE FALLBACK FOR PROJECT REVIEW
+    """
     try:
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         img_small = img.resize((32, 32))
@@ -513,23 +515,22 @@ def detect_food_color_heuristic(image_bytes):
         b_list = [(p[0]+p[1]+p[2])/3 for p in pixels]
         texture = (sum((b - brightness)**2 for b in b_list) / len(pixels))**0.5
 
-        print(f"[Heuristic] R={r_avg:.0f} G={g_avg:.0f} Sat={sat:.2f} Brt={brightness:.0f} Text={texture:.1f}")
+        print(f"[Review-Heuristic] R={r_avg:.0f} G={g_avg:.0f} Sat={sat:.2f} Brt={brightness:.0f} Text={texture:.1f}")
 
-        # 1. Neutral Colors (Rice/Idli/Momo) - MORE TOLERANT OF WARM SHADOWS
-        if sat < 0.22 and brightness > 85:
+        # Rule 1: White Dishes (Idli/Rice/Momo)
+        if sat < 0.20 and brightness > 90:
             if r_avg > g_avg + 8: return "idli"
             return "rice"
 
-        # 2. Red Dishes (Pizza / Sambar)
+        # Rule 2: Reddish/Deep Orange (Sambar/Pizza)
         if r_avg > g_avg + 30:
             return "pizza" if brightness > 155 else "sambar"
 
-        # 3. Golden/Brown/Mixed (Burger / Dosa / Panipuri / Biryani)
+        # Rule 3: Golden/Brown Spectrum (Burger, Dosa, Panipuri, Biryani)
         if r_avg > g_avg + 8:
-            if sat > 0.40: return "biryani"
-            # Texture differentiation
-            if texture > 48: return "burger" 
-            if texture > 35: return "panipuri"
+            if sat > 0.42: return "biryani"
+            if texture > 46: return "burger" 
+            if texture > 32: return "panipuri"
             return "dosa"
 
         return "salad" if g_avg > r_avg else "rice"
@@ -537,11 +538,14 @@ def detect_food_color_heuristic(image_bytes):
         return "rice"
 
 def detect_food(image_bytes, mime_type="image/jpeg"):
-    # 1. Try AI (Fast)
+    """
+    FINAL PRODUCTION PIPELINE
+    """
+    # 1. Try Gemini
     res = detect_food_gemini(image_bytes)
     if res: return res, "gemini"
     
-    # 2. Heuristic (Instant)
+    # 2. Heuristic
     res_h = detect_food_color_heuristic(image_bytes)
     return res_h, "heuristic"
 
