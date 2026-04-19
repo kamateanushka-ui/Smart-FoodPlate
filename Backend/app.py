@@ -8,6 +8,7 @@ from datetime import datetime
 
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
+CORS(app, resources={r"/*": {"origins": "*"}})
 from PIL import Image
 
 # Load .env file (GEMINI_API_KEY lives here)
@@ -463,155 +464,80 @@ FOOD_VISUAL_HINTS = {
     "banana":        "BANANA: a yellow curved fruit.",
     "chicken breast":"CHICKEN BREAST: a flat, grilled or baked white chicken fillet, light brown or white.",
     "salmon":        "SALMON: a pink/orange fish fillet, often grilled with visible lines.",
-    "panipuri":      "PANIPURI/GOL GAPPA: small, thin, crisp, hollow balls of fried dough (puris), golden-brown, often filled with potato/chickpea mixture and served with green flavored water in small cups or near a bowl.",
+    "panipuri":      "PANIPURI/GOL GAPPA: small, thin, crisp, hollow balls of fried dough (puris), golden-brown, often filled with potato/chickpea mixture.",
 }
 
 def detect_food_gemini(image_bytes, mime_type="image/jpeg"):
     """
-    Primary detector: uses Gemini Vision.
+    ULTRA-FAST AI DETECTION FOR PROJECT REVIEW
     """
-    if not genai:
-        return None
-        
+    if not genai: return None
     try:
         img = Image.open(io.BytesIO(image_bytes))
-        img.thumbnail((512, 512))  # Reduce image size for faster analysis
+        img.thumbnail((384, 384))
         food_list = ", ".join(NUTRITION_DB.keys())
-        hints_text = "\n".join(f"  - {v}" for v in FOOD_VISUAL_HINTS.values())
-        prompt = f"Professional culinary analysis. Closely examine texture and shape. Identify the main food. Choose ONLY from the following exact names: {food_list}\nHints: {hints_text}\nRESULT (just the exact name from the list):"
-    except Exception as e:
-        print(f"[Gemini] Image processing failed: {e}")
-        return None
-
-    models_to_try = [
-        "gemini-2.0-flash",
-        "gemini-1.5-flash"
-    ]
-    
-    for model_name in models_to_try:
-        try:
-            print(f"[Gemini] Attempting analysis with {model_name}...")
-            model = genai.GenerativeModel(model_name)
-            
-            # Safety settings to prevent false-positive blocks
-            safety_settings = [
-                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"}, 
-                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
-            ]
-
-            response = model.generate_content(
-                [prompt, img], 
-                generation_config={"temperature": 0.1, "max_output_tokens": 50},
-                safety_settings=safety_settings
-            )
-            
-            if not response.candidates or not response.candidates[0].content.parts:
-                print(f"[AI-LOG] {model_name} response was blocked or empty.")
-                continue
-
+        prompt = f"Food analysis. Identify the main food from this list: {food_list}. RESULT (just the name):"
+        
+        # Only try the most likely model to save time
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        response = model.generate_content([prompt, img], generation_config={"temperature": 0.1, "max_output_tokens": 10})
+        
+        if response and response.candidates and response.candidates[0].content.parts:
             detected = response.text.strip().lower()
-            print(f"[Gemini] {model_name} raw response: '{detected}'")
-            
-            # Simple keyword matching across response
             for food in sorted(NUTRITION_DB.keys(), key=len, reverse=True):
                 if food in detected: return food
-            
-            # Aliases
-            aliases = {
-                "momos": "momo", "dumpling": "momo", "dosas": "dosa", 
-                "gol gappa": "panipuri", "golgappa": "panipuri", "puchka": "panipuri",
-                "pani puri": "panipuri", "phuchka": "panipuri"
-            }
-            for ak, target in aliases.items():
-                if ak in detected: return target
-                
-        except Exception as e:
-            print(f"[Gemini] {model_name} failed: {e}")
-            continue
-
+            if "dosa" in detected: return "dosa"
+            if "idli" in detected: return "idli"
+    except Exception as e:
+        print(f"[AI-QUIK] Offline: {e}")
     return None
-
 
 def detect_food_color_heuristic(image_bytes):
     """
-    Improved fallback: analyses image color histogram to guess food category.
+    DETERMINISTIC COLOR FALLBACK
     """
     try:
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-        img_small = img.resize((64, 64))
+        img_small = img.resize((32, 32))
         pixels = list(img_small.getdata())
-
         r_avg = sum(p[0] for p in pixels) / len(pixels)
         g_avg = sum(p[1] for p in pixels) / len(pixels)
         b_avg = sum(p[2] for p in pixels) / len(pixels)
         brightness = (r_avg + g_avg + b_avg) / 3
-
-        # Compute saturation proxy
-        max_c = max(r_avg, g_avg, b_avg)
-        min_c = min(r_avg, g_avg, b_avg)
+        max_c, min_c = max(r_avg, g_avg, b_avg), min(r_avg, g_avg, b_avg)
         sat = (max_c - min_c) / (max_c + 1)
+        
+        # Calculate texture variance
+        b_list = [(p[0]+p[1]+p[2])/3 for p in pixels]
+        var = sum((b - brightness)**2 for b in b_list) / len(pixels)
+        texture = var**0.5
 
-        print(f"[ColorHeuristic] R={r_avg:.1f} G={g_avg:.1f} B={b_avg:.1f} Brightness={brightness:.1f} Sat={sat:.2f}")
+        print(f"[Heuristic] R={r_avg:.0f} G={g_avg:.0f} Sat={sat:.2f} Brt={brightness:.0f} Text={texture:.1f}")
 
-        # 1. White/Neutral Foods (Rice, Idli, Momo)
-        if brightness > 140 and sat < 0.12:
-            if r_avg > g_avg + 5: return "idli"
-            return "rice"
+        # 1. Neutral Colors (Rice/Idli/Momo)
+        if sat < 0.22 and brightness > 90:
+            return "idli" if r_avg > g_avg + 5 else "rice"
 
-        # 2. Pizza / Reddish Foods
-        if r_avg > 140 and r_avg > g_avg + 25 and sat > 0.15:
-            return "pizza"
+        # 2. Strong Red Tint (Sambar/Pizza)
+        if r_avg > g_avg + 35:
+            return "pizza" if brightness > 150 else "sambar"
 
-        # 3. Pani Puri vs Dosa (Both Golden Brown)
-        if 100 < r_avg < 240 and 80 < g_avg < 200 and sat > 0.15:
-            if g_avg > b_avg + 15 and r_avg < g_avg + 30:
-                return "panipuri"
-            if r_avg > g_avg + 10:
-                return "dosa"
+        # 3. Yellow/Brown Tint (Dosa/Panipuri/Biryani)
+        if r_avg > g_avg + 10:
+            if sat > 0.38: return "biryani"
+            return "panipuri" if texture > 40 else "dosa"
 
-        # 4. Orange/Yellow (Sambar, Dal, Curry, Chana)
-        if r_avg > 165 and g_avg > 110 and sat > 0.30:
-             if r_avg > g_avg + 40: return "sambar"
-             return "dal"
-
-        # 5. Biryani
-        if 115 < r_avg < 210 and 105 < g_avg < 190:
-             return "biryani"
-
-        # Safe defaults
-        if brightness > 180 and sat < 0.15: return "rice"
-        if r_avg > g_avg + 20: return "pizza"
         return "salad" if g_avg > r_avg else "rice"
-
-    except Exception as e:
-        print(f"[ColorHeuristic ERROR] {e}")
-        return "salad"
-
+    except:
+        return "rice"
 
 def detect_food(image_bytes, mime_type="image/jpeg"):
-    """
-    Full detection pipeline:
-    1. Gemini Vision (if API key configured) — most accurate
-    2. Color histogram heuristic — catches Indian foods well
-    3. Safe fallback
-    """
-    # 1. ALWAYS try Gemini first
-    if gemini_model:
-        try:
-            res = detect_food_gemini(image_bytes, mime_type)
-            if res:
-                print(f"[AI-SUCCESS] Gemini detected: {res}")
-                return res, "gemini"
-            else:
-                print("[AI-LOG] Gemini returned None (no match in list).")
-        except Exception as e:
-            print(f"[AI-ERROR] Pipeline Failure: {e}")
-
-    # 2. Heuristic fallback (only for basic cases)
+    # 1. Try AI (Fast)
+    res = detect_food_gemini(image_bytes)
+    if res: return res, "gemini"
+    
+    # 2. Heuristic (Instant)
     res_h = detect_food_color_heuristic(image_bytes)
-    print(f"[FALLBACK] Using color heuristic: {res_h}")
     return res_h, "heuristic"
 
 
