@@ -527,11 +527,13 @@ def detect_food_color_heuristic(image_bytes):
             return "pizza" if brightness > 155 else "sambar"
 
         # Rule 3: Golden/Brown Spectrum (Burger, Dosa, Panipuri, Biryani)
-        if r_avg > g_avg + 8:
-            if sat > 0.42: return "biryani"
-            if texture > 46: return "burger" 
-            if texture > 32: return "panipuri"
-            return "dosa"
+        if r_avg > g_avg + 6:
+            if sat > 0.45: return "biryani"
+            
+            # Texture differentiation
+            if texture > 55: return "panipuri"  # Extremely high contrast (multi-puris)
+            if texture > 28: return "burger"    # Moderate contrast (stacked items)
+            return "dosa"                       # Low contrast (smooth surface)
 
         return "salad" if g_avg > r_avg else "rice"
     except:
