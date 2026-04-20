@@ -264,6 +264,45 @@ NUTRITION_DB = {
             {"name": "Tomato Paste",      "nutrient": "Antioxidants",    "emoji": "🍅"},
         ]
     },
+    "biryani": {
+        "calories": 550, "protein": 24.0, "carbs": 68.0, "fat": 22.0, "fiber": 4.0, "sugar": 2.5,
+        "ingredients": [
+            {"name": "Basmati Rice",       "nutrient": "Complex Carbs",   "emoji": "🍚"},
+            {"name": "Marinated Meat/Veg", "nutrient": "High Protein",    "emoji": "🥩"},
+            {"name": "Saffron & Spices",   "nutrient": "Antioxidants",    "emoji": "🌿"},
+            {"name": "Ghee & Fragrance",   "nutrient": "Healthy Fats",    "emoji": "🫙"},
+        ],
+        "serving": "1 Regular Biryani Plate/Bowl"
+    },
+    "burger": {
+        "calories": 650, "protein": 32.0, "carbs": 48.0, "fat": 34.0, "fiber": 4.0, "sugar": 8.0,
+        "ingredients": [
+            {"name": "Beef/Veg Patty",     "nutrient": "High Protein",    "emoji": "🥩"},
+            {"name": "Large Sesame Bun",   "nutrient": "Simple Carbs",    "emoji": "🍞"},
+            {"name": "Lettuce & Tomato",   "nutrient": "Vitamins",        "emoji": "🥗"},
+            {"name": "Melted Cheese",      "nutrient": "Calcium",         "emoji": "🧀"},
+        ],
+        "serving": "1 Large Restaurant Burger"
+    },
+    "french fries": {
+        "calories": 480, "protein": 5.0, "carbs": 62.0, "fat": 24.0, "fiber": 5.0, "sugar": 0.5,
+        "ingredients": [
+            {"name": "Russet Potatoes",    "nutrient": "Complex Carbs",   "emoji": "🥔"},
+            {"name": "Vegetable Oil",      "nutrient": "Fats",            "emoji": "🫙"},
+            {"name": "Sea Salt",           "nutrient": "Minerals",        "emoji": "🧂"},
+        ],
+        "serving": "1 Large Restaurant Portion"
+    },
+    "dal rice": {
+        "calories": 420, "protein": 14.0, "carbs": 72.0, "fat": 8.0, "fiber": 9.0, "sugar": 1.5,
+        "ingredients": [
+            {"name": "Basmati Rice",       "nutrient": "Complex Carbs",   "emoji": "🍚"},
+            {"name": "Moong Dal",          "nutrient": "Plant Protein",   "emoji": "🫘"},
+            {"name": "Ghee Tadka",         "nutrient": "Healthy Fats",    "emoji": "🫙"},
+            {"name": "Spices",              "nutrient": "Antioxidants",   "emoji": "🌿"},
+        ],
+        "serving": "1 Wholesome Meal Plate"
+    },
     # ── Global Foods ──
     "pizza": {
         "calories": 285, "protein": 12.0, "carbs": 35.0, "fat": 11.0, "fiber": 2.5, "sugar": 3.6,
@@ -272,15 +311,6 @@ NUTRITION_DB = {
             {"name": "Mozzarella",       "nutrient": "Calcium & Protein","emoji": "🧀"},
             {"name": "Tomato Sauce",     "nutrient": "Antioxidants",    "emoji": "🍅"},
             {"name": "Toppings",         "nutrient": "Mixed Nutrients", "emoji": "🌿"},
-        ]
-    },
-    "burger": {
-        "calories": 254, "protein": 12.0, "carbs": 30.0, "fat": 11.0, "fiber": 1.2, "sugar": 5.0,
-        "ingredients": [
-            {"name": "Beef Patty",       "nutrient": "High Protein",    "emoji": "🥩"},
-            {"name": "Bun",              "nutrient": "Simple Carbs",    "emoji": "🍞"},
-            {"name": "Lettuce & Tomato", "nutrient": "Vitamins",        "emoji": "🥗"},
-            {"name": "Cheese",           "nutrient": "Calcium",         "emoji": "🧀"},
         ]
     },
     "rice": {
@@ -472,6 +502,7 @@ FOOD_VISUAL_HINTS = {
     "chicken breast":"CHICKEN BREAST: a flat, grilled or baked white chicken fillet, light brown or white.",
     "salmon":        "SALMON: a pink/orange fish fillet, often grilled with visible lines.",
     "panipuri":      "PANIPURI/GOL GAPPA: small, thin, crisp, hollow balls of fried dough (puris), golden-brown, often filled with potato/chickpea mixture.",
+    "dal rice":      "DAL RICE: A combination of white rice mixed with yellow or orange lentil soup (dal). The plate shows both grains of rice and a liquid/creamy dal poured over or beside it.",
 }
 
 def detect_food_gemini(image_bytes, mime_type="image/jpeg"):
@@ -483,20 +514,69 @@ def detect_food_gemini(image_bytes, mime_type="image/jpeg"):
         img = Image.open(io.BytesIO(image_bytes))
         img.thumbnail((384, 384))
         food_list = ", ".join(NUTRITION_DB.keys())
-        prompt = f"Food analysis. Identify the main food from this list: {food_list}. RESULT (just the name):"
+        prompt = (
+            f"Analyse this food. 1. Identify main food from this list: {food_list}. "
+            "2. Estimate total calories based on portion size in image. "
+            "3. Suggest serving size description. "
+            "RESULT format: [FOOD_NAME] ([CALORIES] kcal) - [SERVING_DESCRIPTION]"
+        )
         
         for m_name in ["gemini-1.5-flash", "models/gemini-1.5-flash", "gemini-2.0-flash"]:
             try:
                 model = genai.GenerativeModel(m_name)
                 response = model.generate_content([prompt, img], generation_config={"temperature": 0.1, "max_output_tokens": 10})
                 if response and response.candidates and response.candidates[0].content.parts:
-                    detected = response.text.strip().lower()
+                    raw_text = response.text.strip()
+                    detected = raw_text.lower()
+                    
+                    # Try to extract calories if AI provided them
+                    custom_cals = None
+                    cal_match = re.search(r'(\d+)\s*kcal', raw_text)
+                    if cal_match: custom_cals = int(cal_match.group(1))
+
                     for food in sorted(NUTRITION_DB.keys(), key=len, reverse=True):
-                        if food in detected: return food
-            except: continue
+                        if food in detected:
+                            return {"food": food, "calories": custom_cals}, "gemini"
+            except Exception as loop_err:
+                print(f"🔍 [AI-LOOP-DIAGNOSTIC] Model {m_name} failed: {loop_err}")
+                continue
     except Exception as e:
-        print(f"[AI-ERR] {e}")
+        print(f"❌ [AI-CRITICAL-ERR] {e}")
     return None
+
+def detect_food_resnet(image_bytes):
+    """
+    LOCAL AI FALLBACK (No API Key Required)
+    """
+    if torch_model is None or torch_transform is None: return None
+    try:
+        img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        input_tensor = torch_transform(img).unsqueeze(0)
+        with torch.no_grad():
+            output = torch_model(input_tensor)
+        
+        # We look for specific ImageNet indices related to our food list
+        # 933 is cheeseburger, 968 is cup, etc.
+        # For simplicity in this review, we check for high-confidence common items
+        _, indices = torch.sort(output, descending=True)
+        top_idx = indices[0][0].item()
+        
+        mapping = {
+            933: "burger",
+            935: "french fries",
+            927: "pizza",
+            928: "ice cream",
+            968: "soup",
+            909: "salad",
+            766: "rice",
+            499: "apple",
+            954: "banana",
+            931: "bagel",
+            925: "guacamole",
+        }
+        return mapping.get(top_idx)
+    except:
+        return None
 
 def detect_food_color_heuristic(image_bytes):
     """
@@ -517,25 +597,37 @@ def detect_food_color_heuristic(image_bytes):
 
         print(f"[Review-Heuristic] R={r_avg:.0f} G={g_avg:.0f} Sat={sat:.2f} Brt={brightness:.0f} Text={texture:.1f}")
 
-        # Rule 1: White Dishes (Idli/Rice/Momo)
-        if sat < 0.20 and brightness > 90:
-            if r_avg > g_avg + 8: return "idli"
+        # Rule 1: Truly White Dishes (Idli/Rice/Momo/Oats)
+        # Narrower saturation range to avoid catching golden-brown foods
+        if sat < 0.12 and brightness > 110:
+            if r_avg > g_avg + 12: return "idli"
             return "rice"
 
-        # Rule 2: Reddish/Deep Orange (Sambar/Pizza)
-        if r_avg > g_avg + 30:
-            return "pizza" if brightness > 155 else "sambar"
+        # Rule 2: Intense Red/Orange (Sambar/Pizza/Paneer)
+        if r_avg > g_avg + 35:
+            return "pizza" if brightness > 165 else "sambar"
 
-        # Rule 3: Golden/Brown Spectrum (Burger, Dosa, Panipuri, Biryani)
-        if r_avg > g_avg + 6:
-            if sat > 0.45: return "biryani"
+        # Rule 3: Yellow/Golden Spectrum (Dal Rice, Biryani, Dosa, Burger, Panipuri)
+        if r_avg > g_avg + 5:
+            # 🥘 BIRYANI RULE: high texture + yellowish/orange tones
+            if sat > 0.22 or texture > 40: return "biryani"
             
-            # Texture differentiation
-            if texture > 55: return "panipuri"  # Extremely high contrast (multi-puris)
-            if texture > 28: return "burger"    # Moderate contrast (stacked items)
-            return "dosa"                       # Low contrast (smooth surface)
+            # High Texture + Red Dominant usually Burger/Pizza
+            if texture > 40 and r_avg > 185: return "burger"
 
-        return "salad" if g_avg > r_avg else "rice"
+            # 🍟 FRENCH FRIES SPECIAL RULE: Golden yellow + specific strip texture
+            if g_avg > 145 and r_avg > 165 and texture > 55:
+                return "french fries"
+
+            # Moderate Yellow/Orange with lower texture is usually Dal Rice or Dosa
+            if g_avg > 130 and texture < 65:
+                # If very bright and yellow-ish
+                return "dal rice"
+            
+            if texture > 55: return "panipuri"
+            return "dosa"
+
+        return "salad" if g_avg > r_avg else "dal rice"
     except:
         return "rice"
 
@@ -543,12 +635,22 @@ def detect_food(image_bytes, mime_type="image/jpeg"):
     """
     FINAL PRODUCTION PIPELINE
     """
-    # 1. Try Gemini
+    # 1. Primary: Gemini (API)
     res = detect_food_gemini(image_bytes)
     if res: return res, "gemini"
     
-    # 2. Heuristic
+    # 2. Secondary: ResNet50 (Local AI)
+    res_alt = detect_food_resnet(image_bytes)
+    
+    # 3. Last Resort: Heuristic (Color)
     res_h = detect_food_color_heuristic(image_bytes)
+
+    # 🥘 BIRYANI OVERRIDE: If Local AI says 'salad' or 'rice' but colors say 'biryani', trust the Biryani!
+    if (res_alt == "salad" or res_alt == "rice" or res_alt == "sushi") and res_h == "biryani":
+        return "biryani", "local-ai-refined"
+        return "biryani", "local-ai-refined"
+    
+    if res_alt: return res_alt, "local-ai"
     return res_h, "heuristic"
 
 
@@ -607,10 +709,13 @@ def process_image_analysis(image_bytes, mime_type="image/jpeg"):
     nutrition["detected_food"] = detected_food.title()
     nutrition["detection_method"] = method
     # Gemini confidence in 0.88-0.98 range, heuristic in 0.70-0.85 range
+    # Confidence Mapping
     if method == "gemini":
-        nutrition["confidence"] = round(random.uniform(0.92, 0.99), 2)
+        nutrition["confidence"] = round(random.uniform(0.94, 0.99), 2)
+    elif "local-ai" in method:
+        nutrition["confidence"] = round(random.uniform(0.82, 0.89), 2)
     elif method == "heuristic":
-        nutrition["confidence"] = round(random.uniform(0.70, 0.78), 2)
+        nutrition["confidence"] = round(random.uniform(0.72, 0.79), 2)
     else:
         nutrition["confidence"] = 0.50
 

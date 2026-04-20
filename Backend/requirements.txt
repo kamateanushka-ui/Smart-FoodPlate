@@ -4,3 +4,4 @@ pillow
 reportlab
 google-generativeai
 python-dotenv
+gunicorn
