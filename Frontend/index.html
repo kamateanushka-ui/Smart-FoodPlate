@@ -555,7 +555,7 @@ function setLoading(active) {
 async function checkServerStatus() {
   const badge = document.getElementById("server-status");
   try {
-    const res = await fetch(CONFIG.API_BASE_URL + "/ping", { signal: AbortSignal.timeout(3000) });
+    const res = await fetch(CONFIG.API_BASE_URL + "/predict", { signal: AbortSignal.timeout(3000) });
     const json = await res.json();
     if (json.success) {
       badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block"></span><span class="text-green-400">Server Online</span>`;
@@ -664,7 +664,7 @@ async function uploadImage(file) {
   formData.append("image", processedFile);
 
   try {
-    const response = await fetch(CONFIG.API_BASE_URL + "/analyze", {
+    const response = await fetch(CONFIG.API_BASE_URL + "/predict", {
       method: "POST",
       body: formData,
     });
@@ -808,7 +808,7 @@ const sendMessage = async () => {
   chatMessages.scrollTop = chatMessages.scrollHeight;
 
   try {
-    const res = await fetch(CONFIG.API_BASE_URL + "/chatbot", {
+    const res = await fetch(CONFIG.API_BASE_URL + "/predict", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: text }),
