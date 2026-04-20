@@ -10,12 +10,7 @@ from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 app = Flask(__name__) 
 CORS(app, resources={r"/*": {"origins": "*"}})
-@app.after_request
-def after_request(response):
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', '*')
-    response.headers.add('Access-Control-Allow-Methods', '*')
-    return response
+
 from PIL import Image
 
 # Load .env file (GEMINI_API_KEY lives here)
