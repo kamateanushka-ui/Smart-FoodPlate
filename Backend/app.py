@@ -8,8 +8,6 @@ from datetime import datetime
 
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
-app = Flask(__name__) 
-CORS(app, resources={r"/*": {"origins": "*"}})
 
 from PIL import Image
 
@@ -46,9 +44,10 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 
 app = Flask(__name__, static_folder="../Frontend", static_url_path="")
+# 🌍 GLOBAL DEPLOYMENT CORS FIX: Allow everything for the review
 CORS(app, resources={r"/*": {"origins": "*"}},
      supports_credentials=False,
-     allow_headers=["Content-Type", "Authorization"],
+     allow_headers=["*"],
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
@@ -784,14 +783,6 @@ def create_pdf(data):
 # 7. FLASK ROUTES
 # ─────────────────────────────────────────────────────────────────
 
-@app.route("/", methods=["GET"])
-def home():
-    return jsonify({
-        "success": True,
-        "message": "SmartFoodPlate backend is running!",
-        "gemini_active": gemini_model is not None,
-        "endpoints": ["/ping", "/analyze", "/chatbot", "/history", "/download-report/<id>"]
-    })
 
 
 @app.route("/ping", methods=["GET"])
@@ -808,6 +799,7 @@ def ping():
 
 
 @app.route("/analyze", methods=["POST"])
+@app.route("/predict", methods=["POST"])
 def analyze():
     try:
         if "image" not in request.files:
